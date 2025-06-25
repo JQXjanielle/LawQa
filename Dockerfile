@@ -1,17 +1,18 @@
-# Use a Python base image
-FROM python:3.12
+# Use Python base image
+FROM python:3.10
 
-# Set working directory inside the container
+# Set working directory in container
 WORKDIR /app
 
-# Copy all project files into the container
+# Copy all files into container
 COPY . /app
 
-# Install dependencies from requirements.txt
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose the port Hugging Face Spaces expects
+# Expose the correct port (Hugging Face expects 7860)
 EXPOSE 7860
 
-# Run your Flask app
+# Start the Flask app
 CMD ["python", "app.py"]
+
