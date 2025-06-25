@@ -32,7 +32,7 @@ def load_dataset_jsonl(path):
                 dataset[key] = {"context": obj["body"]}
     return dataset
 
-DATASET = load_dataset_jsonl("/Data/dataset.jsonl")
+DATASET = load_dataset_jsonl("C:/Users/60128/Documents/NLP2/Data/dataset.jsonl")
 
 # ✅ Type keyword mapping
 TYPE_KEYWORDS = {
