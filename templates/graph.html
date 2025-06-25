@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Knowledge Graph</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <div class="graph-wrapper">
+    <h1 class="graph-title">
+      {% if lang == 'ms' %}
+        Graf Pengetahuan
+      {% elif lang == 'zh' %}
+        知识图谱
+      {% else %}
+        Knowledge Graph
+      {% endif %}
+    </h1>
+    <div class="input-container">
+      <label for="instance-count">
+        <strong>
+          {% if lang == 'ms' %}Papar bilangan entiti:{% elif lang == 'zh' %}显示的实例数：{% else %}Show number of instances:{% endif %}
+        </strong>
+      </label>
+      <input type="number" id="instance-count" min="1" value="10" />
+    </div>
+    <svg class="graph-canvas" width="1200" height="700"></svg>
+    <a href="{{ url_for('home') }}" class="graph-back-link">
+    {% if lang == 'ms' %}
+      ← Kembali ke Laman Utama
+    {% elif lang == 'zh' %}
+      ← 返回欢迎页面
+    {% else %}
+      ← Back to Welcome Page
+    {% endif %}
+  </a>
+  </div>
+
+  <script>
+    const lang = "{{ lang }}";
+    const colorMap = {
+      "Instance": "#0f9d58",
+      "Class": "#f4b400",
+      "Literal": "#888",
+      "Property": "#4285f4",
+      "Thing": "#ccc"
+    };
+
+    let fullData = null;
+    const svg = d3.select("svg");
+    const width = +svg.attr("width");
+    const height = +svg.attr("height");
+    const g = svg.append("g");
+
+    svg.call(d3.zoom().on("zoom", (event) => {
+      g.attr("transform", event.transform);
+    }));
+
+    const defs = svg.append("defs");
+    defs.append("marker")
+      .attr("id", "arrow")
+      .attr("viewBox", "0 -5 10 10")
+      .attr("refX", 20)
+      .attr("refY", 0)
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 6)
+      .attr("orient", "auto")
+      .append("path")
+      .attr("d", "M0,-5L10,0L0,5")
+      .attr("fill", "#999");
+
+    fetch(`/get-kg-json?lang=${lang}`)
+      .then(res => res.json())
+      .then(data => {
+        fullData = data;
+        renderGraph(getFilteredData(10));
+      });
+
+    function getFilteredData(n) {
+      const instanceSet = new Set();
+      const connectedInstances = [];
+
+      for (const link of fullData.links) {
+        const srcNode = fullData.nodes.find(n => n.id === link.source && n.type === "Instance");
+        const tgtNode = fullData.nodes.find(n => n.id === link.target && n.type === "Instance");
+
+        if (srcNode && !instanceSet.has(srcNode.id)) {
+          instanceSet.add(srcNode.id);
+          connectedInstances.push(srcNode);
+        }
+        if (tgtNode && !instanceSet.has(tgtNode.id)) {
+          instanceSet.add(tgtNode.id);
+          connectedInstances.push(tgtNode);
+        }
+
+        if (connectedInstances.length >= n) break;
+      }
+
+      const selectedIds = new Set(connectedInstances.map(n => n.id));
+      const relatedLinks = fullData.links.filter(link =>
+        selectedIds.has(link.source) || selectedIds.has(link.target)
+      );
+
+      const relatedNodeIds = new Set();
+      relatedLinks.forEach(link => {
+        relatedNodeIds.add(link.source);
+        relatedNodeIds.add(link.target);
+      });
+
+      const allNodes = fullData.nodes.filter(node => relatedNodeIds.has(node.id));
+      return { nodes: allNodes, links: relatedLinks };
+    }
+
+    function renderGraph(data) {
+      g.selectAll("*").remove();
+
+      const simulation = d3.forceSimulation(data.nodes)
+        .force("link", d3.forceLink(data.links).id(d => d.id).distance(150))
+        .force("charge", d3.forceManyBody().strength(-300))
+        .force("center", d3.forceCenter(width / 2, height / 2));
+
+      const link = g.append("g")
+        .selectAll("line")
+        .data(data.links)
+        .enter().append("line")
+        .attr("stroke", "#999")
+        .attr("stroke-width", 1.5)
+        .attr("marker-end", "url(#arrow)");
+
+      const node = g.append("g")
+        .selectAll("ellipse")
+        .data(data.nodes)
+        .enter().append("ellipse")
+        .attr("rx", 35)
+        .attr("ry", 18)
+        .attr("fill", d => colorMap[d.type] || "#ccc")
+        .call(drag(simulation));
+
+      const label = g.append("g")
+        .selectAll("text")
+        .data(data.nodes)
+        .enter().append("text")
+        .text(d => d.label)
+        .attr("text-anchor", "middle")
+        .attr("dy", ".35em")
+        .attr("pointer-events", "none")
+        .style("font-size", "11px")
+        .style("fill", "#000");
+
+      const tooltip = d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("opacity", 0);
+
+      node.on("mouseover", (event, d) => {
+        tooltip.transition().duration(200).style("opacity", 0.9);
+        tooltip.html(`<strong>${d.label}</strong><br/>Type: ${d.type}`)
+          .style("left", (event.pageX + 10) + "px")
+          .style("top", (event.pageY - 20) + "px");
+      }).on("mouseout", () => {
+        tooltip.transition().duration(300).style("opacity", 0);
+      });
+
+      simulation.on("tick", () => {
+        link
+          .attr("x1", d => d.source.x)
+          .attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x)
+          .attr("y2", d => d.target.y);
+
+        node
+          .attr("transform", d => `translate(${d.x},${d.y})`);
+
+        label
+          .attr("x", d => d.x)
+          .attr("y", d => d.y);
+      });
+    }
+
+    function drag(simulation) {
+      return d3.drag()
+        .on("start", (event, d) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on("drag", (event, d) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on("end", (event, d) => {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        });
+    }
+
+    document.getElementById("instance-count").addEventListener("change", () => {
+      const n = parseInt(document.getElementById("instance-count").value);
+      const filtered = getFilteredData(n);
+      renderGraph(filtered);
+    });
+  </script>
+</body>
+</html>
