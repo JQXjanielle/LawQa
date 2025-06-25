@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="home-box-container">
+  <div class="home-box-wrapper">
+    <div class="home-box-header">
+      <h1>
+        {% if lang == 'ms' %}
+          Sistem Pertanyaan Undang-undang Memandu Malaysia
+        {% elif lang == 'en' %}
+          Malaysian Driving Law Query System
+        {% elif lang == 'zh' %}
+          马来西亚驾驶法规查询系统
+        {% endif %}
+      </h1>
+    </div>
+
+    <p class="home-box-text">
+      {% if lang == 'ms' %}
+        Selamat datang! Sila klik butang di bawah<br>untuk memulakan perbualan.
+      {% elif lang == 'en' %}
+        Welcome! Click the button below<br>to start the conversation.
+      {% elif lang == 'zh' %}
+        欢迎！请点击下面的按钮开始对话。
+      {% endif %}
+    </p>
+
+    <div class="home-box-btn-section">
+      <a href="{{ url_for('chat') }}">
+        <button class="home-box-btn">
+          {% if lang == 'ms' %} Mula Berbual
+          {% elif lang == 'en' %} Start Chat
+          {% elif lang == 'zh' %} 开始对话
+          {% endif %}
+        </button>
+      </a>
+
+      <a href="{{ url_for('graph') }}">
+        <button class="home-box-btn">
+          {% if lang == 'ms' %} Papar Graf Pengetahuan
+          {% elif lang == 'en' %} View Knowledge Graph
+          {% elif lang == 'zh' %} 查看知识图谱
+          {% endif %}
+        </button>
+      </a>
+
+      <a href="{{ url_for('index') }}" class="home-box-link">
+        ← 
+        {% if lang == 'ms' %} Kembali ke Pemilihan Bahasa
+        {% elif lang == 'en' %} Back to Language Selection
+        {% elif lang == 'zh' %} 返回语言选择
+        {% endif %}
+      </a>
+    </div>
+</div>
+{% endblock %}
